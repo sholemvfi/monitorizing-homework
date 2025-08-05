@@ -1,0 +1,22 @@
+FROM node:18-alpine
+
+# Install required packages
+RUN apk add --no-cache stress-ng
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY server/package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY server/ ./
+
+# Expose port
+EXPOSE 4001
+
+# Start the server
+CMD ["npm", "start"]

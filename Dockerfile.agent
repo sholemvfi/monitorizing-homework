@@ -1,0 +1,22 @@
+FROM node:18-alpine
+
+# Install required packages
+RUN apk add --no-cache stress-ng openssl
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY agent/package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY agent/ ./
+
+# Expose port
+EXPOSE 5001
+
+# Start the agent
+CMD ["npm", "start"]

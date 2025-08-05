@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.10.6/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script type="text/javascript" src="statusModel.js"></script>
+    <style type="text/css">
+        .foo {
+            float: left;
+            width: 20px;
+            height: 20px;
+            margin: 5px;
+            border-width: 1px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, .2);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+        }
+        
+        .healthy { color: #00ff00; }
+        .warning { color: #ffcc00; }
+        .critical { color: #ff6600; }
+        .failed { color: #ff0000; }
+        
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1, h3 {
+            color: #333;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.6/css/jquery.dataTables.css">
+
+    <script src=//unpkg.com/vue@2.6.14></script>
+    <script src=//unpkg.com/vuetrend></script>
+
+</head>
+
+<body>
+    <div class="container">
+        <h1>🚀 Monitoring Dashboard</h1>
+
+        <h3>📊 Server Status Overview</h3>
+        <div id="statusColors" :key="componentKey">
+            <div v-for="client in clients">
+                <span class="foo" v-bind:style="{backgroundColor: client.status}"></span>
+                <span>{{client.name}}</span>
+            </div>
+        </div>
+        <br />
+
+        <h3>📈 Real-time Metrics</h3>
+        <table id="statusTable" class="display" cellspacing="0" width="100%">
+            <thead>
+                <tr>
+                    <th>Server Name</th>
+                    <th>Status</th>
+                    <th>CPU %</th>
+                    <th>Memory %</th>
+                    <th>Disk %</th>
+                    <th>RPS</th>
+                    <th>Latency (ms)</th>
+                    <th>HTTP Status</th>
+                    <th>Health Trend</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="client in clients">
+                    <td><strong>{{client.name}}</strong></td>
+                    <td>
+                        <span class="status-indicator" v-bind:style="{backgroundColor: client.status}"></span>
+                        <span v-if="client.status === '#00ff00'" class="healthy">Healthy</span>
+                        <span v-else-if="client.status === '#00cc00'" class="warning">Warning</span>
+                        <span v-else-if="client.status === '#ffcc00'" class="critical">Critical</span>
+                        <span v-else class="failed">Failed</span>
+                    </td>
+                    <td>
+                        <span class="metric-value" v-bind:class="{
+                            'healthy': client.cpuLoad <= 50,
+                            'warning': client.cpuLoad > 50 && client.cpuLoad <= 80,
+                            'critical': client.cpuLoad > 80 && client.cpuLoad <= 95,
+                            'failed': client.cpuLoad > 95
+                        }">{{client.cpuLoad}}%</span>
+                    </td>
+                    <td>
+                        <span class="metric-value" v-bind:class="{
+                            'healthy': client.memoryLoad <= 50,
+                            'warning': client.memoryLoad > 50 && client.memoryLoad <= 80,
+                            'critical': client.memoryLoad > 80 && client.memoryLoad <= 95,
+                            'failed': client.memoryLoad > 95
+                        }">{{client.memoryLoad}}%</span>
+                    </td>
+                    <td>
+                        <span class="metric-value" v-bind:class="{
+                            'healthy': client.diskUsage <= 50,
+                            'warning': client.diskUsage > 50 && client.diskUsage <= 80,
+                            'critical': client.diskUsage > 80 && client.diskUsage <= 95,
+                            'failed': client.diskUsage > 95
+                        }">{{client.diskUsage}}%</span>
+                    </td>
+                    <td>
+                        <span class="metric-value" v-bind:class="{
+                            'healthy': client.requestsPerSecond <= 50,
+                            'warning': client.requestsPerSecond > 50 && client.requestsPerSecond <= 100,
+                            'critical': client.requestsPerSecond > 100 && client.requestsPerSecond <= 500,
+                            'failed': client.requestsPerSecond > 500
+                        }">{{client.requestsPerSecond}}</span>
+                    </td>
+                    <td>
+                        <span class="metric-value" v-bind:class="{
+                            'healthy': client.latency <= 100,
+                            'warning': client.latency > 100 && client.latency <= 200,
+                            'critical': client.latency > 200 && client.latency <= 1000,
+                            'failed': client.latency > 1000
+                        }">{{client.latency}}</span>
+                    </td>
+                    <td>
+                        <span class="metric-value" v-bind:class="{
+                            'healthy': client.statusCode === 200,
+                            'warning': client.statusCode >= 300 && client.statusCode < 400,
+                            'critical': client.statusCode >= 400 && client.statusCode < 500,
+                            'failed': client.statusCode >= 500 || client.statusCode === 0
+                        }">{{client.statusCode}}</span>
+                    </td>
+                    <td>
+                        <div>
+                            <trend :key="client.name" :data="client.scoreTrend" :stroke-width="4"
+                                :gradient="['#ff0000', '#00ff00']">
+                            </trend>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+
+</html>
